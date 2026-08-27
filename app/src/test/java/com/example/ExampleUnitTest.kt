@@ -75,4 +75,42 @@ class ExampleUnitTest {
         assertNotNull(result.recommendedSectionMm2)
         assertTrue(result.recommendedSectionMm2!! > 1.5)
     }
+
+    @Test
+    fun testSubterraneanCableHigherAmperage() {
+        // 4 mm² cable:
+        // Unipolar mono Iadm = 28 A
+        // Subterráneo mono Iadm = 43 A
+        val unipolarAdm = ConductorTable.getAdmissibleCurrent(4.0, com.example.data.electrical.CableType.UNIPOLAR, SystemType.MONOFASICO_220)
+        val subterranAdm = ConductorTable.getAdmissibleCurrent(4.0, com.example.data.electrical.CableType.SUBTERRANEO, SystemType.MONOFASICO_220)
+        
+        assertEquals(28.0, unipolarAdm, 0.001)
+        assertEquals(43.0, subterranAdm, 0.001)
+        assertTrue(subterranAdm > unipolarAdm)
+
+        // Test with load of 6500W at 220V, cosPhi=0.85 -> I = 6500 / (220 * 0.85) = 34.75 A
+        // For unipolar 4mm2 (Iadm=28A): Overload!
+        val unipolarResult = VoltageDropCalculator.calculate(
+            sectionMm2 = 4.0,
+            powerWatts = 6500.0,
+            distanceMeters = 10.0,
+            systemType = SystemType.MONOFASICO_220,
+            cableType = com.example.data.electrical.CableType.UNIPOLAR,
+            cosPhi = 0.85
+        )
+        assertTrue(unipolarResult.isThermallyOverloaded)
+        assertEquals(ComplianceStatus.OVERLOAD, unipolarResult.complianceStatus)
+
+        // For subterranean 4mm2 (Iadm=43A): No overload! (34.75A < 43A)
+        val subterraneoResult = VoltageDropCalculator.calculate(
+            sectionMm2 = 4.0,
+            powerWatts = 6500.0,
+            distanceMeters = 10.0,
+            systemType = SystemType.MONOFASICO_220,
+            cableType = com.example.data.electrical.CableType.SUBTERRANEO,
+            cosPhi = 0.85
+        )
+        org.junit.Assert.assertFalse(subterraneoResult.isThermallyOverloaded)
+        assertEquals(ComplianceStatus.OPTIMAL, subterraneoResult.complianceStatus)
+    }
 }

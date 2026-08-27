@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.db.AppDatabase
 import com.example.data.db.CalculationEntity
+import com.example.data.electrical.CableType
 import com.example.data.electrical.CalculationResult
 import com.example.data.electrical.ComplianceStatus
 import com.example.data.electrical.ConductorMaterial
@@ -28,6 +29,7 @@ data class CalculatorUiState(
     val powerInput: String = "2200",
     val distanceInput: String = "25",
     val systemType: SystemType = SystemType.MONOFASICO_220,
+    val cableType: CableType = CableType.UNIPOLAR,
     val cosPhiInput: String = "0.85",
     val material: ConductorMaterial = ConductorMaterial.COPPER,
     val powerUnit: String = "W", // "W", "kW", "HP"
@@ -104,6 +106,11 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         recalculate()
     }
 
+    fun onCableTypeChanged(cableType: CableType) {
+        _uiState.update { it.copy(cableType = cableType, isCalculationSaved = false) }
+        recalculate()
+    }
+
     fun onCosPhiChanged(cosPhi: String) {
         val sanitized = cosPhi.filter { it.isDigit() || it == '.' || it == ',' }.replace(',', '.')
         _uiState.update { it.copy(cosPhiInput = sanitized, isCalculationSaved = false) }
@@ -153,6 +160,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
             powerWatts = powerInWatts,
             distanceMeters = distance,
             systemType = state.systemType,
+            cableType = state.cableType,
             cosPhi = cosPhi,
             material = state.material
         )
@@ -177,6 +185,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                 powerWatts = res.powerWatts,
                 distanceMeters = res.distanceMeters,
                 isThreePhase = res.systemType == SystemType.TRIFASICO_380,
+                cableType = res.cableType.name,
                 voltage = res.systemType.nominalVoltage,
                 cosPhi = res.cosPhi,
                 material = res.material.label,
@@ -185,7 +194,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                 deltaVolts = res.deltaVolts,
                 deltaVoltsPercent = res.deltaVoltsPercent,
                 status = res.complianceStatus.name,
-                note = "${if (res.systemType == SystemType.MONOFASICO_220) "Mono 220V" else "Tri 380V"} - ${res.sectionMm2} mm²"
+                note = "${if (res.systemType == SystemType.MONOFASICO_220) "Mono 220V" else "Tri 380V"} - ${res.sectionMm2} mm² (${res.cableType.shortLabel})"
             )
             val id = repository.insert(entity)
             _uiState.update { it.copy(isCalculationSaved = true, lastSavedId = id) }
@@ -196,6 +205,11 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     fun loadFromHistory(item: CalculationEntity) {
         val systemType = if (item.isThreePhase) SystemType.TRIFASICO_380 else SystemType.MONOFASICO_220
         val material = if (item.material.contains("Aluminio", ignoreCase = true)) ConductorMaterial.ALUMINUM else ConductorMaterial.COPPER
+        val cableType = try {
+            CableType.valueOf(item.cableType)
+        } catch (_: Exception) {
+            CableType.UNIPOLAR
+        }
 
         _uiState.update {
             it.copy(
@@ -203,6 +217,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                 powerInput = if (item.powerWatts % 1.0 == 0.0) item.powerWatts.toInt().toString() else "%.1f".format(item.powerWatts),
                 distanceInput = if (item.distanceMeters % 1.0 == 0.0) item.distanceMeters.toInt().toString() else "%.1f".format(item.distanceMeters),
                 systemType = systemType,
+                cableType = cableType,
                 cosPhiInput = "%.2f".format(item.cosPhi).replace(',', '.'),
                 material = material,
                 powerUnit = "W",
@@ -212,7 +227,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
         recalculate()
         viewModelScope.launch {
-            _toastEvent.emit("Cálculo cargado: ${item.sectionMm2} mm² - ${item.distanceMeters} m")
+            _toastEvent.emit("Cálculo cargado: ${item.sectionMm2} mm² (${cableType.shortLabel}) - ${item.distanceMeters} m")
         }
     }
 

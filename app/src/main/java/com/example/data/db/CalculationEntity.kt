@@ -12,6 +12,7 @@ data class CalculationEntity(
     val powerWatts: Double,
     val distanceMeters: Double,
     val isThreePhase: Boolean,
+    val cableType: String = "UNIPOLAR", // "UNIPOLAR" o "SUBTERRANEO"
     val voltage: Double,
     val cosPhi: Double,
     val material: String,

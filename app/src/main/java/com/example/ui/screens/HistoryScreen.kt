@@ -289,8 +289,9 @@ private fun HistoryItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
+                    val cableLabel = if (item.cableType.equals("SUBTERRANEO", ignoreCase = true)) "Subterráneo" else "Unipolar"
                     Text(
-                        text = "${item.sectionMm2} mm² • ${item.powerWatts.toInt()}W • ${item.distanceMeters.toInt()}m",
+                        text = "${item.sectionMm2} mm² ($cableLabel) • ${item.powerWatts.toInt()}W • ${item.distanceMeters.toInt()}m",
                         style = MaterialTheme.typography.bodyMedium,
                         color = PolishTextPrimary,
                         fontWeight = FontWeight.Bold
@@ -423,10 +424,12 @@ private fun EmptyHistoryState(onNavigateToCalculator: () -> Unit) {
 
 private fun shareCalculation(context: Context, item: CalculationEntity) {
     val sys = if (item.isThreePhase) "Trifásico 380V" else "Monofásico 220V"
+    val cableLabel = if (item.cableType.equals("SUBTERRANEO", ignoreCase = true)) "Subterráneo / Sintenax (IRAM 2178)" else "Unipolar en Cañería (IRAM 2183)"
     val text = """
         ⚡ REPORTE DE CAÍDA DE TENSIÓN (VoltCalc AR)
         ------------------------------------------
         • Sección: ${item.sectionMm2} mm² (${item.material})
+        • Tipo de Cable: $cableLabel
         • Sistema: $sys (cos φ = ${String.format(Locale.US, "%.2f", item.cosPhi)})
         • Potencia: ${item.powerWatts.toInt()} W
         • Distancia: ${item.distanceMeters.toInt()} m

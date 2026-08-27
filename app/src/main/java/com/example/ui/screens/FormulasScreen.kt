@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,6 +49,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.electrical.CableType
 import com.example.data.electrical.ConductorTable
 import com.example.ui.theme.PolishBg
 import com.example.ui.theme.PolishCardBg
@@ -253,6 +256,7 @@ private fun TechnicalTerminalCard(
 @Composable
 private fun IramTableContent() {
     val scrollState = rememberScrollState()
+    var selectedTableType by remember { mutableStateOf(CableType.UNIPOLAR) }
 
     Column(
         modifier = Modifier
@@ -272,7 +276,7 @@ private fun IramTableContent() {
                     Icon(Icons.Default.TableChart, contentDescription = null, tint = PolishPrimary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Tabla de Conductores (IRAM 2183 / 247-3)",
+                        text = if (selectedTableType == CableType.UNIPOLAR) "Tabla Conductores (IRAM 2183 / 247-3)" else "Tabla Subterráneos (IRAM 2178)",
                         style = MaterialTheme.typography.titleMedium,
                         color = PolishTextPrimary,
                         fontWeight = FontWeight.Bold
@@ -280,10 +284,44 @@ private fun IramTableContent() {
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Valores de k a cos φ = 0.85 y corriente admisible para cables unipolares de cobre en cañería embutida (30°C ambiente).",
+                    text = if (selectedTableType == CableType.UNIPOLAR) {
+                        "Valores de k (cos φ=0.85) e intensidades admisibles para conductores unipolares de cobre en cañería embutida (30°C ambiente)."
+                    } else {
+                        "Valores e intensidades admisibles para cables subterráneos multipolares (Sintenax IRAM 2178) directamente enterrados (25°C terreno) / al aire."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = PolishTextSecondary
                 )
+            }
+        }
+
+        // Selector de tipo de tabla (Unipolar vs Subterráneo)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(PolishInputBg, RoundedCornerShape(12.dp))
+                .border(1.dp, PolishInputBorder, RoundedCornerShape(12.dp))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            CableType.entries.forEach { type ->
+                val isSelected = selectedTableType == type
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) PolishPrimary else Color.Transparent)
+                        .clickable { selectedTableType = type }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (type == CableType.UNIPOLAR) "Unipolar (IRAM 2183)" else "Subterráneo (IRAM 2178)",
+                        color = if (isSelected) Color.White else PolishTextSecondary,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
             }
         }
 
@@ -296,10 +334,22 @@ private fun IramTableContent() {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Sección", style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold)
-            Text(text = "Iadm (Mono)", style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold)
-            Text(text = "k (Mono)", style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold)
-            Text(text = "k (Tri)", style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold)
+            Text(text = "Sección", style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold)
+            Text(
+                text = if (selectedTableType == CableType.UNIPOLAR) "Iadm (Mono)" else "Iadm (2x Bip)",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White,
+                modifier = Modifier.weight(1.3f),
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = if (selectedTableType == CableType.UNIPOLAR) "Iadm (Tri)" else "Iadm (4x Tet)",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White,
+                modifier = Modifier.weight(1.3f),
+                fontWeight = FontWeight.Bold
+            )
+            Text(text = "k (Mono)", style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.weight(1.0f), fontWeight = FontWeight.Bold)
         }
 
         // Filas de la Tabla
@@ -310,6 +360,9 @@ private fun IramTableContent() {
         ) {
             ConductorTable.standardSections.forEachIndexed { index, item ->
                 val rowBg = if (index % 2 == 0) PolishCardBg else PolishInputBg
+                val admMono = if (selectedTableType == CableType.UNIPOLAR) item.admissibleCurrentMonoA else item.admissibleSubterraneoMonoA
+                val admTri = if (selectedTableType == CableType.UNIPOLAR) item.admissibleCurrentTriA else item.admissibleSubterraneoTriA
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -322,29 +375,29 @@ private fun IramTableContent() {
                         text = item.label,
                         style = MaterialTheme.typography.bodyMedium,
                         color = PolishPrimary,
-                        modifier = Modifier.weight(1.2f),
+                        modifier = Modifier.weight(1.1f),
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
-                        text = "${item.admissibleCurrentMonoA.toInt()} A",
+                        text = "${admMono.toInt()} A",
                         style = MaterialTheme.typography.bodyMedium,
                         color = PolishTextPrimary,
-                        modifier = Modifier.weight(1.2f),
+                        modifier = Modifier.weight(1.3f),
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = "${admTri.toInt()} A",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PolishTextPrimary,
+                        modifier = Modifier.weight(1.3f),
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
                         text = "${item.kMono}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = PolishTextSecondary,
-                        modifier = Modifier.weight(1.1f),
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        text = "${item.kTri}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PolishTextSecondary,
-                        modifier = Modifier.weight(1.1f),
+                        modifier = Modifier.weight(1.0f),
                         fontFamily = FontFamily.Monospace
                     )
                 }

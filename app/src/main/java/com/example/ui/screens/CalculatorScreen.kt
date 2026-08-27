@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -49,7 +50,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -71,6 +71,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.electrical.CableType
 import com.example.data.electrical.CalculationResult
 import com.example.data.electrical.ComplianceStatus
 import com.example.data.electrical.ConductorMaterial
@@ -79,20 +80,14 @@ import com.example.data.electrical.SystemType
 import com.example.ui.theme.PolishBg
 import com.example.ui.theme.PolishCardBg
 import com.example.ui.theme.PolishCardBorder
-import com.example.ui.theme.PolishDarkContainer
-import com.example.ui.theme.PolishDarkContainerBorder
-import com.example.ui.theme.PolishDarkContainerSurface
 import com.example.ui.theme.PolishInputBg
 import com.example.ui.theme.PolishInputBorder
 import com.example.ui.theme.PolishPrimary
-import com.example.ui.theme.PolishPrimaryDark
 import com.example.ui.theme.PolishPrimaryLight
 import com.example.ui.theme.PolishStatusError
 import com.example.ui.theme.PolishStatusErrorBg
 import com.example.ui.theme.PolishStatusSuccess
-import com.example.ui.theme.PolishStatusSuccessBg
 import com.example.ui.theme.PolishStatusWarning
-import com.example.ui.theme.PolishStatusWarningBg
 import com.example.ui.theme.PolishTextPrimary
 import com.example.ui.theme.PolishTextSecondary
 import com.example.ui.theme.PolishTextTertiary
@@ -119,7 +114,7 @@ fun CalculatorScreen(
             .testTag("calculator_screen"),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Selector rápido Monofásico / Trifásico
+        // 1. Selector rápido Monofásico / Trifásico
         SystemTypeSelector(
             currentType = uiState.systemType,
             onTypeSelected = { viewModel.onSystemTypeChanged(it) }
@@ -157,14 +152,21 @@ fun CalculatorScreen(
                     )
                 }
 
-                // 1. SECCIÓN DEL CONDUCTOR (Menú Desplegable Normalizado)
+                // 2. TIPO DE CABLE / INSTALACIÓN (Unipolar vs Subterráneo)
+                CableTypeSelector(
+                    selectedCableType = uiState.cableType,
+                    onCableTypeSelected = { viewModel.onCableTypeChanged(it) }
+                )
+
+                // 3. SECCIÓN DEL CONDUCTOR (Menú Desplegable Normalizado)
                 ConductorSectionDropdown(
                     selectedSection = uiState.sectionMm2,
+                    cableType = uiState.cableType,
                     systemType = uiState.systemType,
                     onSectionSelected = { viewModel.onSectionChanged(it) }
                 )
 
-                // 2. GRID DISTANCIA Y POTENCIA
+                // 4. GRID DISTANCIA Y POTENCIA
                 DistanceInputField(
                     value = uiState.distanceInput,
                     onValueChange = { viewModel.onDistanceChanged(it) },
@@ -238,7 +240,7 @@ fun CalculatorScreen(
 
         // Pie técnico
         Text(
-            text = "Cálculo según AEA 90364 & Coeficiente de Caída IRAM 2183",
+            text = "Cálculo según AEA 90364 & Normas IRAM 2183 / 2178",
             style = MaterialTheme.typography.labelSmall,
             color = PolishTextTertiary,
             modifier = Modifier
@@ -303,14 +305,90 @@ private fun SystemTypeSelector(
 }
 
 @Composable
+private fun CableTypeSelector(
+    selectedCableType: CableType,
+    onCableTypeSelected: (CableType) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "TIPO DE CABLE / INSTALACIÓN",
+                style = MaterialTheme.typography.labelSmall,
+                color = PolishTextSecondary,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
+            )
+            Text(
+                text = selectedCableType.standardNorm,
+                style = MaterialTheme.typography.labelSmall,
+                color = PolishPrimary,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(PolishInputBg, RoundedCornerShape(14.dp))
+                .border(1.dp, PolishInputBorder, RoundedCornerShape(14.dp))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            CableType.entries.forEach { type ->
+                val isSelected = selectedCableType == type
+                val bgColor by animateColorAsState(
+                    if (isSelected) PolishPrimary else Color.Transparent,
+                    animationSpec = tween(150),
+                    label = "cableTypeBg"
+                )
+                val textColor = if (isSelected) Color.White else PolishTextSecondary
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(bgColor)
+                        .clickable { onCableTypeSelected(type) }
+                        .padding(vertical = 8.dp, horizontal = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = if (type == CableType.UNIPOLAR) Icons.Default.Bolt else Icons.Default.Security,
+                            contentDescription = null,
+                            tint = textColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = type.shortLabel,
+                            color = textColor,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ConductorSectionDropdown(
     selectedSection: Double,
+    cableType: CableType,
     systemType: SystemType,
     onSectionSelected: (Double) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val conductor = ConductorTable.getSection(selectedSection)
-    val maxAdm = if (systemType == SystemType.MONOFASICO_220) conductor.admissibleCurrentMonoA else conductor.admissibleCurrentTriA
+    val maxAdm = ConductorTable.getAdmissibleCurrent(selectedSection, cableType, systemType)
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
@@ -326,7 +404,7 @@ private fun ConductorSectionDropdown(
                 letterSpacing = 0.5.sp
             )
             Text(
-                text = "Iadm: ${maxAdm.toInt()} A (IRAM)",
+                text = "Iadm: ${maxAdm.toInt()} A (${cableType.shortLabel})",
                 style = MaterialTheme.typography.labelSmall,
                 color = PolishTextTertiary,
                 fontWeight = FontWeight.Medium
@@ -389,7 +467,7 @@ private fun ConductorSectionDropdown(
                     .border(1.dp, PolishCardBorder, RoundedCornerShape(12.dp))
             ) {
                 ConductorTable.standardSections.forEach { sec ->
-                    val secAdm = if (systemType == SystemType.MONOFASICO_220) sec.admissibleCurrentMonoA else sec.admissibleCurrentTriA
+                    val secAdm = ConductorTable.getAdmissibleCurrent(sec.sectionMm2, cableType, systemType)
                     DropdownMenuItem(
                         text = {
                             Row(
@@ -795,12 +873,6 @@ private fun ResultsHeroCard(
     onApplyRecommendedSection: (Double) -> Unit,
     onNavigateToFormulas: () -> Unit
 ) {
-    val statusColor = when (result.complianceStatus) {
-        ComplianceStatus.OPTIMAL -> PolishStatusSuccess
-        ComplianceStatus.ADMISSIBLE -> PolishStatusWarning
-        ComplianceStatus.NON_COMPLIANT, ComplianceStatus.OVERLOAD -> PolishStatusError
-    }
-
     val bannerBg = when (result.complianceStatus) {
         ComplianceStatus.OPTIMAL -> PolishPrimary
         ComplianceStatus.ADMISSIBLE -> Color(0xFFD97706)
@@ -947,13 +1019,13 @@ private fun ResultsHeroCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Coeficiente k: ${String.format(Locale.US, "%.2f V/(A·km)", result.coefficientK)}",
+                        text = "Iadm: ${result.maxAdmissibleCurrentA.toInt()} A • k: ${String.format(Locale.US, "%.2f", result.coefficientK)} V/(A·km)",
                         style = MaterialTheme.typography.bodySmall,
                         color = PolishTextSecondary,
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
-                        text = "IRAM 2183",
+                        text = "${result.cableType.shortLabel} (${result.cableType.standardNorm.split(" ").first()})",
                         style = MaterialTheme.typography.labelSmall,
                         color = PolishPrimary,
                         fontWeight = FontWeight.Bold
@@ -973,7 +1045,7 @@ private fun ResultsHeroCard(
                         Icon(Icons.Default.Warning, contentDescription = null, tint = PolishStatusError, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "¡Alerta! Corriente ${String.format(Locale.US, "%.1f A", result.currentAmps)} supera la admisible ${result.maxAdmissibleCurrentA.toInt()} A.",
+                            text = "¡Alerta! Corriente ${String.format(Locale.US, "%.1f A", result.currentAmps)} supera la admisible ${result.maxAdmissibleCurrentA.toInt()} A (${result.cableType.shortLabel}).",
                             style = MaterialTheme.typography.labelSmall,
                             color = PolishStatusError,
                             fontWeight = FontWeight.Bold
@@ -1006,7 +1078,7 @@ private fun ResultsHeroCard(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
-                                    text = "Sección sugerida (≤ 3%):",
+                                    text = "Sección sugerida (${result.cableType.shortLabel} ≤ 3%):",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = PolishTextSecondary
                                 )

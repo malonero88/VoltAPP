@@ -24,6 +24,7 @@ data class CalculationResult(
     val powerWatts: Double,
     val distanceMeters: Double,
     val systemType: SystemType,
+    val cableType: CableType = CableType.UNIPOLAR,
     val cosPhi: Double,
     val material: ConductorMaterial,
     val currentAmps: Double,
@@ -41,13 +42,14 @@ object VoltageDropCalculator {
 
     /**
      * Calcula la corriente I (A), caída de tensión ΔV (V), caída porcentual ΔV (%)
-     * y verifica la normativa AEA 90364.
+     * y verifica la normativa AEA 90364 considerando el tipo de cable (Unipolar o Subterráneo).
      */
     fun calculate(
         sectionMm2: Double,
         powerWatts: Double,
         distanceMeters: Double,
         systemType: SystemType = SystemType.MONOFASICO_220,
+        cableType: CableType = CableType.UNIPOLAR,
         cosPhi: Double = 0.85,
         material: ConductorMaterial = ConductorMaterial.COPPER
     ): CalculationResult {
@@ -57,6 +59,7 @@ object VoltageDropCalculator {
                 powerWatts = powerWatts,
                 distanceMeters = distanceMeters,
                 systemType = systemType,
+                cableType = cableType,
                 cosPhi = cosPhi,
                 material = material,
                 currentAmps = 0.0,
@@ -79,15 +82,14 @@ object VoltageDropCalculator {
             SystemType.TRIFASICO_380 -> powerWatts / (sqrt(3.0) * voltage * validCosPhi)
         }
 
-        // 2. Obtener datos del conductor
-        val conductor = ConductorTable.getSection(sectionMm2)
-        val maxAdmissibleCurrentA = when (systemType) {
-            SystemType.MONOFASICO_220 -> conductor.admissibleCurrentMonoA
-            SystemType.TRIFASICO_380 -> conductor.admissibleCurrentTriA
-        }
+        // 2. Obtener datos del conductor según tipo de cable (Unipolar IRAM 2183 o Subterráneo IRAM 2178)
+        val maxAdmissibleCurrentA = ConductorTable.getAdmissibleCurrent(
+            sectionMm2 = sectionMm2,
+            cableType = cableType,
+            systemType = systemType
+        )
 
         // 3. Coeficiente k de caída de tensión en V / (A · km)
-        // Para cobre a cos phi = 0.85 usamos la tabla normalizada; si cambia cos phi o material, calculamos el k equivalente
         val baseK = when (systemType) {
             SystemType.MONOFASICO_220 -> {
                 // k = 2 * rho * 1000 * cosPhi / S
@@ -120,7 +122,11 @@ object VoltageDropCalculator {
         var recommendedSection: Double? = null
         if (deltaVoltsPercent > 3.0 || isThermallyOverloaded) {
             for (sec in ConductorTable.standardSections) {
-                val secAdm = if (systemType == SystemType.MONOFASICO_220) sec.admissibleCurrentMonoA else sec.admissibleCurrentTriA
+                val secAdm = ConductorTable.getAdmissibleCurrent(
+                    sectionMm2 = sec.sectionMm2,
+                    cableType = cableType,
+                    systemType = systemType
+                )
                 val secK = if (systemType == SystemType.MONOFASICO_220) {
                     (2.0 * material.rho70 * 1000.0 * validCosPhi) / sec.sectionMm2
                 } else {
@@ -141,6 +147,7 @@ object VoltageDropCalculator {
             powerWatts = powerWatts,
             distanceMeters = distanceMeters,
             systemType = systemType,
+            cableType = cableType,
             cosPhi = validCosPhi,
             material = material,
             currentAmps = currentAmps,
