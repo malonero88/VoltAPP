@@ -874,9 +874,9 @@ private fun ResultsHeroCard(
     onNavigateToFormulas: () -> Unit
 ) {
     val bannerBg = when (result.complianceStatus) {
-        ComplianceStatus.OPTIMAL -> PolishPrimary
-        ComplianceStatus.ADMISSIBLE -> Color(0xFFD97706)
-        ComplianceStatus.NON_COMPLIANT, ComplianceStatus.OVERLOAD -> Color(0xFFDC2626)
+        ComplianceStatus.OPTIMAL -> Color(0xFF16A34A) // Verde para resultado Óptimo / Correcto (≤ 3%)
+        ComplianceStatus.ADMISSIBLE -> Color(0xFFD97706) // Ámbar / Admisible (3% a 5%)
+        ComplianceStatus.NON_COMPLIANT, ComplianceStatus.OVERLOAD -> Color(0xFFDC2626) // Rojo / No cumple o Sobrecarga
     }
 
     Column(
