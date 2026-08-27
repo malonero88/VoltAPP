@@ -1,0 +1,6 @@
+{
+  "name": "VoltCalc",
+  "description": "Calculadora de coeficiente de caída de tensión para electricistas según sección de conductor, potencia y distancia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
